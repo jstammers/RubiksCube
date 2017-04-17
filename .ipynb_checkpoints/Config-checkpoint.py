@@ -20,9 +20,9 @@ TAU = 0.001
 # Render gym env during training
 RENDER_ENV = True
 # Use Gym Monitor
-GYM_MONITOR_EN = True
+GYM_MONITOR_EN = False
 # Gym environment
-ENV_NAME = 'Pendulum-v0'
+ENV_NAME = 'Rubiks'
 # Directory for storing gym results
 MONITOR_DIR = './results/gym_ddpg'
 # Directory for storing tensorboard summary results
@@ -30,4 +30,20 @@ SUMMARY_DIR = './results/tf_ddpg'
 RANDOM_SEED = 1234
 # Size of replay buffer
 BUFFER_SIZE = 10000
-MINIBATCH_SIZE = 64
+MINIBATCH_SIZE = 500
+#Size of Rubiks Cube
+N_CUBE=2
+
+# ===========================
+#   Recurrent Network Parameters
+# ===========================
+#Fraction of data used for training
+TRAIN_FRAC = 0.7
+#Flags Generation of Data
+GENERATE_DATA = True
+# Base Learning Rate
+LEARNING_RATE = 0.001
+# Training Epochs
+EPOCHS = 5
+# Number of steps to test if it can solve a cube
+TEST_STEPS = 50

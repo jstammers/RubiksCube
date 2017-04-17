@@ -1,4 +1,5 @@
 import tflearn
+import tensorflow as tf
 
 class ActorNetwork(object):
 
@@ -8,6 +9,7 @@ class ActorNetwork(object):
         self.a_dim = action_dim
         self.action_bound = action_bound
         self.learning_rate = learning_rate
+        self.tau=tau
 
         # Actor Network
         self.inputs, self.out, self.scaled_out = self.create_actor_network()
@@ -42,13 +44,13 @@ class ActorNetwork(object):
             self.network_params) + len(self.target_network_params)
         
     def create_actor_network(self): 
-        inputs = tflearn.input_data(shape=[None, self.s_dim])
+        inputs = tflearn.input_data(shape=[None, self.s_dim[0],self.s_dim[1]])
         net = tflearn.fully_connected(inputs, 400, activation='relu')
         net = tflearn.fully_connected(net, 300, activation='relu')
         # Final layer weights are init to Uniform[-3e-3, 3e-3]
-        w_init = tflearn.initializations.uniform(minval=-0.003, maxval=0.003)
-        out = tflearn.fully_connected(net, self.a_dim, activation='tanh', weights_init=w_init)
-        scaled_out = tf.mul(out, self.action_bound) # Scale output to -action_bound to action_bound
+        w_init = tflearn.initializations.uniform(minval=-1, maxval=1)
+        out = tflearn.fully_connected(net, self.a_dim, activation='softmax', weights_init=w_init)
+        scaled_out = tf.multiply(out, self.action_bound) # Scale output to -action_bound to action_bound
         return inputs, out, scaled_out 
     
     def configure(self):
@@ -130,7 +132,7 @@ class CriticNetwork(object):
         self.action_grads = tf.gradients(self.out, self.action)
 
     def create_critic_network(self):
-        inputs = tflearn.input_data(shape=[None, self.s_dim])
+        inputs = tflearn.input_data(shape=[None, *self.s_dim])
         action = tflearn.input_data(shape=[None, self.a_dim])
         net = tflearn.fully_connected(inputs, 400, activation='relu')
 

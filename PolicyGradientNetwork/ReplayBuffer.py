@@ -2,14 +2,20 @@ from collections import deque
 import random
 import numpy as np
 
+from collections import deque
+import random
+import numpy as np
+
 class ReplayBuffer(object):
-    '''
-    Stores each move in a buffer of a specified size
-    '''
-    def __init__(self, buffer_size):
+
+    def __init__(self, buffer_size, random_seed=123):
+        """
+        The right side of the deque contains the most recent experiences 
+        """
         self.buffer_size = buffer_size
         self.count = 0
         self.buffer = deque()
+        random.seed(random_seed)
 
     def add(self, s, a, r, t, s2):
         experience = (s, a, r, t, s2)
@@ -24,13 +30,6 @@ class ReplayBuffer(object):
         return self.count
 
     def sample_batch(self, batch_size):
-        '''     
-        batch_size specifies the number of experiences to add 
-        to the batch. If the replay buffer has less than batch_size
-        elements, simply return all of the elements within the buffer.
-        Generally, you'll want to wait until the buffer has at least 
-        batch_size elements before beginning to sample from it.
-        '''
         batch = []
 
         if self.count < batch_size:

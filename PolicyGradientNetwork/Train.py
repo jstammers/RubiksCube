@@ -1,15 +1,20 @@
 # ===========================
 #   Agent Training
 # ===========================
-import ReplayBuffer
+from ReplayBuffer import ReplayBuffer
+import tensorflow as tf
+import numpy as np
+from Networks import *
+from gym import wrappers
 from Config import *
+from CubeEnv import CubeEnv
 
 def train(sess, env, actor, critic):
 
     # Set up summary Ops
     summary_ops, summary_vars = build_summaries()
-
     sess.run(tf.global_variables_initializer())
+
     writer = tf.summary.FileWriter(SUMMARY_DIR, sess.graph)
 
     # Initialize target network weights
@@ -19,7 +24,7 @@ def train(sess, env, actor, critic):
     # Initialize replay memory
     replay_buffer = ReplayBuffer(BUFFER_SIZE, RANDOM_SEED)
 
-    for i in xrange(MAX_EPISODES):
+    for i in range(MAX_EPISODES):
 
         s = env.reset()
 
@@ -30,14 +35,15 @@ def train(sess, env, actor, critic):
 
             if RENDER_ENV:
                 env.render()
-
+                
             # Added exploration noise
-            a = actor.predict(np.reshape(s, (1, 3))) + (1. / (1. + i))
-
+            #a = actor.predict(s) + (1. / (1. + i))
+            a=actor.predict(s.reshape(1,*s.shape))
+            a+=int((np.random.rand()-0.5)*actor.a_dim/(1.+i))
             s2, r, terminal, info = env.step(a[0])
 
-            replay_buffer.add(np.reshape(s, (actor.s_dim,)), np.reshape(a, (actor.a_dim,)), r,
-                              terminal, np.reshape(s2, (actor.s_dim,)))
+            replay_buffer.add(s, np.reshape(a, (actor.a_dim,)), r,
+                              terminal, s2)
 
             # Keep adding experience to the memory until
             # there are at least minibatch size samples
@@ -50,7 +56,7 @@ def train(sess, env, actor, critic):
                     s2_batch, actor.predict_target(s2_batch))
 
                 y_i = []
-                for k in xrange(MINIBATCH_SIZE):
+                for k in range(MINIBATCH_SIZE):
                     if t_batch[k]:
                         y_i.append(r_batch[k])
                     else:
@@ -58,7 +64,7 @@ def train(sess, env, actor, critic):
 
                 # Update the critic given the targets
                 predicted_q_value, _ = critic.train(
-                    s_batch, a_batch, np.reshape(y_i, (MINIBATCH_SIZE, 1)))
+                    s_batch, a_batch, np.reshape(np.array(y_i), (MINIBATCH_SIZE,1)))
 
                 ep_ave_max_q += np.amax(predicted_q_value)
 
@@ -74,34 +80,33 @@ def train(sess, env, actor, critic):
             s = s2
             ep_reward += r
 
+
             if terminal:
 
-                summary_str = sess.run(summary_ops, feed_dict={
+                
+                break
+        summary_str = sess.run(summary_ops, feed_dict={
                     summary_vars[0]: ep_reward,
                     summary_vars[1]: ep_ave_max_q / float(j)
                 })
 
-                writer.add_summary(summary_str, i)
-                writer.flush()
+        writer.add_summary(summary_str, i)
+        writer.flush()
+        print('| Reward: %.2i' % int(ep_reward), " | Episode", i, \
+                      '| Qmax: %.4f' % (ep_ave_max_q / float(j)))
 
-                print '| Reward: %.2i' % int(ep_reward), " | Episode", i, \
-                    '| Qmax: %.4f' % (ep_ave_max_q / float(j))
-
-                break
 
 def main(_):
     with tf.Session() as sess:
 
-        env = gym.make(ENV_NAME)
+        env = CubeEnv(N_CUBE)
         np.random.seed(RANDOM_SEED)
         tf.set_random_seed(RANDOM_SEED)
         env.seed(RANDOM_SEED)
 
-        state_dim = env.observation_space.shape[0]
+        state_dim = env.observation_space.shape
         action_dim = env.action_space.shape[0]
         action_bound = env.action_space.high
-        # Ensure action bound is symmetric
-        assert (env.action_space.high == -env.action_space.low)
 
         actor = ActorNetwork(sess, state_dim, action_dim, action_bound,
                              ACTOR_LEARNING_RATE, TAU)
@@ -120,3 +125,6 @@ def main(_):
 
         if GYM_MONITOR_EN:
             env.monitor.close()
+if __name__ == '__main__':
+    tf.app.run()
+    meta_graph_def = tf.train.export_meta_graph(filename=SUMMARY_DIR+"/rubiks_model.tfl")
